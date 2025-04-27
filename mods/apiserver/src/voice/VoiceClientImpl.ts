@@ -16,19 +16,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Stream } from "stream";
+import { Readable, Stream } from "stream";
 import { AuthzClient } from "@fonoster/authz";
 import {
   GrpcError,
   SayOptions,
-  STASIS_APP_NAME,
   StreamEvent,
   VoiceClientConfig,
   VoiceIn,
   VoiceSessionStreamClient
 } from "@fonoster/common";
 import { getLogger } from "@fonoster/logger";
-import { AudioSocket } from "@fonoster/streams";
+import { AudioSocket, AudioStream } from "@fonoster/streams";
 import * as grpc from "@grpc/grpc-js";
 import { Bridge, Client } from "ari-client";
 import { pickPort } from "pick-port";
@@ -60,20 +59,16 @@ class VoiceClientImpl implements VoiceClient {
   stt: SpeechToText;
   grpcClient: GRPCClient;
   audioSocket: AudioSocket;
-  asStream: Stream;
+  audioStream: AudioStream;
   ari: Client;
   bridge: Bridge;
-  filesServer;
 
-  constructor(
-    params: {
-      ari: Client;
-      config: VoiceClientConfig;
-      tts: TextToSpeech;
-      stt: SpeechToText;
-    },
-    filesServer
-  ) {
+  constructor(params: {
+    ari: Client;
+    config: VoiceClientConfig;
+    tts: TextToSpeech;
+    stt: SpeechToText;
+  }) {
     const { config, tts, stt, ari } = params;
     this.config = config;
     this.verbsStream = new Stream();
@@ -81,7 +76,6 @@ class VoiceClientImpl implements VoiceClient {
     this.tts = tts;
     this.stt = stt;
     this.ari = ari;
-    this.filesServer = filesServer;
   }
 
   async connect() {
@@ -144,67 +138,27 @@ class VoiceClientImpl implements VoiceClient {
     });
 
     const externalMediaPort = await pickPort({ type: "tcp" });
+    logger.verbose("picked external media port", { port: externalMediaPort });
 
-    this.setupAudioSocket(externalMediaPort);
-    await this.setupExternalMedia(externalMediaPort);
-  }
+    // Wait for both audio socket and external media setup to complete
+    await Promise.all([
+      this.setupAudioSocket(externalMediaPort),
+      this.setupExternalMedia(externalMediaPort)
+    ]);
 
-  setupAudioSocket(port: number) {
-    this.audioSocket = new AudioSocket();
-
-    this.audioSocket.onConnection(
-      transcribeOnConnection(this.transcriptionsStream)
-    );
-
-    this.audioSocket.listen(port, () => {
-      logger.verbose("starting audio socket for voice client", {
-        port,
-        appRef: this.config.appRef
-      });
-    });
-  }
-
-  on(type: string, callback: (data: VoiceIn) => void) {
-    this.verbsStream.on(type.toString(), (data: VoiceIn) => {
-      callback(data[type]);
-    });
-  }
-
-  sendResponse(response: VoiceIn): void {
-    this.voice.write(response);
-  }
-
-  getTranscriptionsStream() {
-    return this.transcriptionsStream;
+    logger.verbose("voice client setup completed");
   }
 
   async setupExternalMedia(port: number) {
-    // Snoop from the main channel
-    const snoopChannel = await this.ari.channels.snoopChannel({
-      app: STASIS_APP_NAME,
-      channelId: this.config.sessionRef,
-      snoopId: `snoop-${this.config.sessionRef}`,
-      spy: "in"
-    });
-
     const bridge = this.ari.Bridge();
+    const channel = this.ari.Channel();
 
     await bridge.create({ type: "mixing" });
-
-    this.bridge = bridge;
-
-    const channel = this.ari.Channel();
 
     channel.externalMedia(createExternalMediaConfig(port));
 
     channel.once(AriEvent.STASIS_START, async (_, channel) => {
-      bridge.addChannel({ channel: [snoopChannel.id, channel.id] });
-
-      this.ari.bridges.record({
-        bridgeId: bridge.id,
-        name: `${this.config.appRef}_${this.config.sessionRef}_b`,
-        format: "wav"
-      });
+      bridge.addChannel({ channel: [this.config.sessionRef, channel.id] });
     });
 
     channel.once("ChannelLeftBridge", async () => {
@@ -214,20 +168,28 @@ class VoiceClientImpl implements VoiceClient {
         // We can only try
       }
     });
+
+    this.bridge = bridge;
   }
 
   async synthesize(text: string, options: SayOptions): Promise<string> {
     const { ref, stream } = this.tts.synthesize(text, options);
 
-    stream.on("error", async (error) => {
+    logger.verbose("starting audio synthesis", { ref });
+
+    try {
+      await this.audioStream.playStream(stream);
+    } catch (error) {
       logger.error(`stream error for ref ${ref}: ${error.message}`, {
         errorDetails: error.stack || "No stack trace"
       });
-      this.filesServer.removeStream(ref);
-    });
+    }
 
-    this.filesServer.addStream(ref, stream);
     return ref;
+  }
+
+  async stopSynthesis() {
+    this.audioStream.stopPlayStream();
   }
 
   async transcribe(): Promise<SpeechResult> {
@@ -237,23 +199,6 @@ class VoiceClientImpl implements VoiceClient {
       logger.warn("transcription error", e);
       return {} as unknown as SpeechResult;
     }
-  }
-
-  startSpeechGather(
-    callback: (stream: { speech: string; responseTime: number }) => void
-  ) {
-    const out = this.stt.streamTranscribe(this.transcriptionsStream);
-
-    out.on("data", callback);
-
-    out.on("error", async (error) => {
-      logger.error("speech recognition error", { error });
-
-      const { sessionRef: channelId } = this.config;
-      const { ari } = this;
-
-      ari.channels.hangup({ channelId });
-    });
   }
 
   async startDtmfGather(
@@ -320,6 +265,77 @@ class VoiceClientImpl implements VoiceClient {
 
       channel.on(AriEvent.CHANNEL_DTMF_RECEIVED, dtmfListener);
       resetTimer(); // Start the initial timeout
+    });
+  }
+
+  setupAudioSocket(port: number): Promise<void> {
+    return new Promise((resolve) => {
+      logger.verbose("creating audio socket", { port });
+      this.audioSocket = new AudioSocket();
+
+      this.audioSocket.onConnection(async (req, res) => {
+        logger.verbose("audio socket connection received", {
+          ref: req.ref,
+          sessionRef: this.config.sessionRef
+        });
+
+        transcribeOnConnection(this.transcriptionsStream)(req, res);
+
+        res.onClose(() => {
+          logger.verbose("session audio stream closed", {
+            sessionRef: this.config.sessionRef
+          });
+        });
+
+        res.onError((err) => {
+          logger.error("session audio stream error", {
+            error: err,
+            sessionRef: this.config.sessionRef
+          });
+        });
+
+        this.audioStream = res;
+
+        resolve();
+      });
+
+      this.audioSocket.listen(port, () => {
+        logger.verbose("audio socket listening", {
+          port,
+          appRef: this.config.appRef
+        });
+      });
+    });
+  }
+
+  sendResponse(response: VoiceIn): void {
+    this.voice.write(response);
+  }
+
+  getTranscriptionsStream() {
+    return this.transcriptionsStream;
+  }
+
+  startSpeechGather(
+    callback: (stream: { speech: string; responseTime: number }) => void
+  ) {
+    const out = this.stt.streamTranscribe(this.transcriptionsStream);
+
+    out.on("data", callback);
+
+    out.on("error", async (error) => {
+      logger.error("speech recognition error", { error });
+
+      const { sessionRef: channelId } = this.config;
+      const { ari } = this;
+
+      ari.channels.hangup({ channelId });
+    });
+  }
+
+  on(type: string, callback: (data: VoiceIn) => void) {
+    this.verbsStream.on(type.toString(), (data: VoiceIn) => {
+      callback(data[type]);
     });
   }
 

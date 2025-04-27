@@ -20,8 +20,11 @@ import * as fs from "fs";
 import * as net from "net";
 import { setTimeout } from "node:timers/promises";
 import { Readable } from "stream";
+import { getLogger } from "@fonoster/logger";
 import { Message } from "./Message";
 import { EventType } from "./types";
+
+const logger = getLogger({ service: "streams", filePath: __filename });
 
 const MAX_CHUNK_SIZE = 320;
 
@@ -31,7 +34,8 @@ const MAX_CHUNK_SIZE = 320;
 class AudioStream {
   private stream: Readable;
   private socket: net.Socket;
-
+  private isPlaying: boolean = false;
+  private activeStream: Readable | null = null;
   /**
    * Creates a new AudioStream.
    *
@@ -69,8 +73,10 @@ class AudioStream {
    * @param {string} filePath - The path to the audio file
    * @return {Promise<void>}
    */
-  async play(filePath: string) {
+  async play(filePath: string): Promise<void> {
     const fileStream = fs.readFileSync(filePath);
+
+    logger.verbose("playing audio file", { filePath });
 
     let offset = 0;
 
@@ -78,13 +84,89 @@ class AudioStream {
     while (offset < fileStream.length) {
       const sliceSize = Math.min(fileStream.length - offset, MAX_CHUNK_SIZE);
       const slicedChunk = fileStream.subarray(offset, offset + sliceSize);
-      const buffer = Message.createSlinMessage(slicedChunk);
-      this.socket.write(buffer);
+      await this._processAudioChunk(slicedChunk);
       offset += sliceSize;
-
-      // Wait for 20ms to match the sample rate
-      await setTimeout(20);
     }
+  }
+
+  /**
+   * Plays audio from an input stream and returns an output stream.
+   * The playback can be stopped using stopPlayStream().
+   *
+   * @param {Readable} inputStream - The input stream to read audio from
+   * @return {Promise<void>}
+   */
+  async playStream(inputStream: Readable): Promise<void> {
+    // Stop any previous active stream cleanly
+    if (this.activeStream) {
+      this._cleanupActiveStream();
+    }
+
+    this.isPlaying = true;
+    this.activeStream = inputStream;
+
+    // Buffer to store incoming data
+    const buffer: Buffer[] = [];
+    let isProcessing = false;
+
+    // Function to process the buffer
+    const processBuffer = async () => {
+      if (!this.isPlaying || isProcessing || buffer.length === 0) return;
+
+      isProcessing = true;
+
+      try {
+        while (buffer.length > 0 && this.isPlaying) {
+          const chunk = buffer.shift()!;
+          await this._processAudioChunk(chunk);
+        }
+      } finally {
+        isProcessing = false;
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      // Collect data from input stream
+      inputStream.on("data", async (chunk: Buffer) => {
+        if (!this.isPlaying || this.activeStream !== inputStream) return;
+
+        for (let offset = 0; offset < chunk.length; offset += MAX_CHUNK_SIZE) {
+          const sliceSize = Math.min(chunk.length - offset, MAX_CHUNK_SIZE);
+          const slicedChunk = chunk.subarray(offset, offset + sliceSize);
+          buffer.push(slicedChunk);
+        }
+
+        // Start processing if not already processing
+        if (!isProcessing) {
+          await processBuffer();
+          resolve();
+        }
+      });
+
+      inputStream.on("error", (err) => {
+        logger.error("error playing stream", err);
+        if (this.activeStream === inputStream) {
+          logger.error("error playing stream", err);
+          this._cleanupActiveStream();
+          reject(err);
+        }
+      });
+
+      inputStream.on("end", () => {
+        logger.verbose("stream ended");
+        if (this.activeStream === inputStream) {
+          this._cleanupActiveStream();
+        }
+      });
+    });
+  }
+
+  /**
+   * Stops the current stream playback.
+   */
+  stopPlayStream() {
+    this.isPlaying = false;
+    this._cleanupActiveStream();
   }
 
   /**
@@ -108,6 +190,7 @@ class AudioStream {
    */
   onClose(callback: () => void): this {
     this.stream.on(EventType.END, callback);
+    this.isPlaying = false;
     return this;
   }
 
@@ -120,7 +203,26 @@ class AudioStream {
    */
   onError(callback: (err: Error) => void): this {
     this.stream.on(EventType.ERROR, callback);
+    this.isPlaying = false;
     return this;
+  }
+
+  private async _processAudioChunk(chunk: Buffer) {
+    const buffer = Message.createSlinMessage(chunk);
+    this.socket.write(buffer);
+    await setTimeout(20);
+  }
+
+  private _cleanupActiveStream() {
+    if (this.activeStream) {
+      this.activeStream.removeAllListeners("data");
+      this.activeStream.removeAllListeners("error");
+      this.activeStream.removeAllListeners("end");
+      if (typeof this.activeStream.pause === "function") {
+        this.activeStream.pause();
+      }
+      this.activeStream = null;
+    }
   }
 }
 
