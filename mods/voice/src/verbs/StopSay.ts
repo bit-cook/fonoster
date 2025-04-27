@@ -22,9 +22,7 @@ import { Verb } from "./Verb";
 
 class StopSay extends Verb<StopSayRequest> {
   getValidationSchema(): z.Schema {
-    return z.object({
-      sessionRef: z.string()
-    });
+    return z.object({});
   }
 }
 

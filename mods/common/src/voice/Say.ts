@@ -24,13 +24,9 @@ type SayRequest = VerbRequest & {
   options?: Struct;
 };
 
-type SayResponse = {
-  sessionRef: string;
-};
-
 type SayOptions = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 };
 
-export { SayOptions, SayRequest, SayResponse };
+export { SayOptions, SayRequest };

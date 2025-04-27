@@ -29,7 +29,6 @@ import {
   RecordOptions,
   RecordResponse,
   SayOptions,
-  SayResponse,
   StreamEvent,
   StreamGatherOptions,
   StreamOptions,
@@ -240,18 +239,18 @@ class VoiceResponse {
    *   await response.playbackControl(playbackRef, PlaybackControlAction.STOP);
    * }
    */
-  async say(text: string, options?: SayOptions): Promise<SayResponse> {
-    const response = await new Say(this.request, this.voice).run({
+  async say(text: string, options?: SayOptions): Promise<VerbResponse> {
+    await new Say(this.request, this.voice).run({
       options: options ? struct.encode(options) : undefined,
       sessionRef: this.request.sessionRef,
       text
     });
 
-    return response.sayResponse;
+    return { sessionRef: this.request.sessionRef };
   }
 
   /**
-   * Stop the TTS engine.
+   * Stop the current TTS operation.
    * @example
    *
    * async function handler (request, response) {
@@ -267,11 +266,11 @@ class VoiceResponse {
    * }
    */
   async stopSay(): Promise<VerbResponse> {
-    const response = await new StopSay(this.request, this.voice).run({
+    await new StopSay(this.request, this.voice).run({
       sessionRef: this.request.sessionRef
     });
 
-    return response.stopSayResponse;
+    return { sessionRef: this.request.sessionRef };
   }
 
   /**

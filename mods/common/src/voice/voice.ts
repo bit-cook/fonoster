@@ -24,8 +24,8 @@ import { MuteRequest } from "./Mute";
 import { PlayRequest, PlayResponse } from "./Play";
 import { PlayDtmfRequest } from "./PlayDtmf";
 import { RecordRequest, RecordResponse } from "./Record";
-import { SayRequest, SayResponse } from "./Say";
-import { StopSayRequest, StopSayResponse } from "./StopSay";
+import { SayRequest } from "./Say";
+import { StopSayRequest } from "./StopSay";
 import {
   StartStreamRequest,
   StartStreamResponse,
@@ -106,7 +106,7 @@ type VoiceIn = {
   muteResponse?: VerbResponse;
   unmuteResponse?: VerbResponse;
   gatherResponse?: GatherResponse;
-  sayResponse?: SayResponse;
+  sayResponse?: VerbResponse;
   recordResponse?: RecordResponse;
   dialResponse?: { status: DialStatus };
   startStreamResponse?: StartStreamResponse;
@@ -114,7 +114,7 @@ type VoiceIn = {
   streamGatherPayload?: StreamGatherPayload;
   startStreamGatherResponse?: VerbResponse;
   stopStreamGatherResponse?: VerbResponse;
-  stopSayResponse?: StopSayResponse;
+  stopSayResponse?: VerbResponse;
 };
 
 type VoiceOut = {
