@@ -100,11 +100,9 @@ class AudioStream {
     this.isPlaying = true;
     this.activeStream = inputStream;
 
-    // Buffer to store incoming data
     const buffer: Buffer[] = [];
     let isProcessing = false;
 
-    // Function to process the buffer
     const processBuffer = async () => {
       if (!this.isPlaying || isProcessing || buffer.length === 0) return;
 
@@ -121,7 +119,6 @@ class AudioStream {
     };
 
     return new Promise((resolve, reject) => {
-      // Collect data from input stream
       inputStream.on("data", async (chunk: Buffer) => {
         if (!this.isPlaying || this.activeStream !== inputStream) return;
 
@@ -131,7 +128,6 @@ class AudioStream {
           buffer.push(slicedChunk);
         }
 
-        // Start processing if not already processing
         if (!isProcessing) {
           await processBuffer();
           resolve();

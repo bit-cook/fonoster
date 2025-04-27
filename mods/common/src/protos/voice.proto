@@ -401,6 +401,9 @@ message VoiceInStream {
     // Response to a say request (It shares the same response as play)
     PlayResponse say_response = 10;
 
+    // Response to stopping the an active say speech
+    VerbResponse stop_say_response = 18;
+
     // Response to a record request
     RecordResponse record_response = 11;
 
@@ -453,6 +456,9 @@ message VoiceOutStream {
 
     // Request to say a text
     SayRequest say_request = 10;
+
+    // Request to stop any active Say speech
+    StopSayRequest stop_say_request = 19;
 
     // Request to record
     RecordRequest record_request = 11;

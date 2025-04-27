@@ -178,6 +178,8 @@ class VoiceClientImpl implements VoiceClient {
     logger.verbose("starting audio synthesis", { ref });
 
     try {
+      // Stop any active stream
+      this.audioStream.stopPlayStream();
       await this.audioStream.playStream(stream);
     } catch (error) {
       logger.error(`stream error for ref ${ref}: ${error.message}`, {
