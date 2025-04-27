@@ -16,26 +16,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as fs from "fs";
 import * as net from "net";
-import { setTimeout } from "node:timers/promises";
 import { Readable } from "stream";
-import { getLogger } from "@fonoster/logger";
+import { AudioPlayer } from "./AudioPlayer";
 import { Message } from "./Message";
 import { EventType } from "./types";
-
-const logger = getLogger({ service: "streams", filePath: __filename });
-
-const MAX_CHUNK_SIZE = 320;
 
 /**
  * @classdesc Object representing a stream of bidirectional audio data and control messages.
  */
 class AudioStream {
+  private player: AudioPlayer;
   private stream: Readable;
   private socket: net.Socket;
-  private isPlaying: boolean = false;
-  private activeStream: Readable | null = null;
+
   /**
    * Creates a new AudioStream.
    *
@@ -45,6 +39,7 @@ class AudioStream {
   constructor(stream: Readable, socket: net.Socket) {
     this.stream = stream;
     this.socket = socket;
+    this.player = new AudioPlayer(socket);
   }
 
   /**
@@ -74,19 +69,7 @@ class AudioStream {
    * @return {Promise<void>}
    */
   async play(filePath: string): Promise<void> {
-    const fileStream = fs.readFileSync(filePath);
-
-    logger.verbose("playing audio file", { filePath });
-
-    let offset = 0;
-
-    // eslint-disable-next-line no-loops/no-loops
-    while (offset < fileStream.length) {
-      const sliceSize = Math.min(fileStream.length - offset, MAX_CHUNK_SIZE);
-      const slicedChunk = fileStream.subarray(offset, offset + sliceSize);
-      await this._processAudioChunk(slicedChunk);
-      offset += sliceSize;
-    }
+    return this.player.play(filePath);
   }
 
   /**
@@ -97,61 +80,14 @@ class AudioStream {
    * @return {Promise<void>}
    */
   async playStream(inputStream: Readable): Promise<void> {
-    this.isPlaying = true;
-    this.activeStream = inputStream;
-
-    const buffer: Buffer[] = [];
-    let isProcessing = false;
-
-    const processBuffer = async () => {
-      if (!this.isPlaying || isProcessing || buffer.length === 0) return;
-
-      isProcessing = true;
-
-      try {
-        while (buffer.length > 0 && this.isPlaying) {
-          const chunk = buffer.shift()!;
-          await this._processAudioChunk(chunk);
-        }
-      } finally {
-        isProcessing = false;
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      inputStream.on("data", async (chunk: Buffer) => {
-        if (!this.isPlaying || this.activeStream !== inputStream) return;
-
-        for (let offset = 0; offset < chunk.length; offset += MAX_CHUNK_SIZE) {
-          const sliceSize = Math.min(chunk.length - offset, MAX_CHUNK_SIZE);
-          const slicedChunk = chunk.subarray(offset, offset + sliceSize);
-          buffer.push(slicedChunk);
-        }
-
-        if (!isProcessing) {
-          await processBuffer();
-          resolve();
-        }
-      });
-
-      inputStream.on("error", (err) => {
-        logger.error("error playing stream", err);
-        this._cleanupActiveStream();
-        reject(err);
-      });
-
-      inputStream.on("end", () => {
-        this._cleanupActiveStream();
-      });
-    });
+    return this.player.playStream(inputStream);
   }
 
   /**
    * Stops the current stream playback.
    */
-  stopPlayStream() {
-    this.isPlaying = false;
-    this._cleanupActiveStream();
+  stop() {
+    this.player.stop();
   }
 
   /**
@@ -175,7 +111,6 @@ class AudioStream {
    */
   onClose(callback: () => void): this {
     this.stream.on(EventType.END, callback);
-    this.isPlaying = false;
     return this;
   }
 
@@ -188,26 +123,7 @@ class AudioStream {
    */
   onError(callback: (err: Error) => void): this {
     this.stream.on(EventType.ERROR, callback);
-    this.isPlaying = false;
     return this;
-  }
-
-  private async _processAudioChunk(chunk: Buffer) {
-    const buffer = Message.createSlinMessage(chunk);
-    this.socket.write(buffer);
-    await setTimeout(20);
-  }
-
-  private _cleanupActiveStream() {
-    if (this.activeStream) {
-      this.activeStream.removeAllListeners("data");
-      this.activeStream.removeAllListeners("error");
-      this.activeStream.removeAllListeners("end");
-      if (typeof this.activeStream.pause === "function") {
-        this.activeStream.pause();
-      }
-      this.activeStream = null;
-    }
   }
 }
 
