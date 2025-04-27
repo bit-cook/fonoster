@@ -97,11 +97,6 @@ class AudioStream {
    * @return {Promise<void>}
    */
   async playStream(inputStream: Readable): Promise<void> {
-    // Stop any previous active stream cleanly
-    if (this.activeStream) {
-      this._cleanupActiveStream();
-    }
-
     this.isPlaying = true;
     this.activeStream = inputStream;
 
@@ -145,18 +140,12 @@ class AudioStream {
 
       inputStream.on("error", (err) => {
         logger.error("error playing stream", err);
-        if (this.activeStream === inputStream) {
-          logger.error("error playing stream", err);
-          this._cleanupActiveStream();
-          reject(err);
-        }
+        this._cleanupActiveStream();
+        reject(err);
       });
 
       inputStream.on("end", () => {
-        logger.verbose("stream ended");
-        if (this.activeStream === inputStream) {
-          this._cleanupActiveStream();
-        }
+        this._cleanupActiveStream();
       });
     });
   }

@@ -24,6 +24,8 @@ function getExpectedContent(name: string) {
       return "startStreamGatherResponse";
     case "StartStream":
       return "startStreamResponse";
+    case "StopSay":
+      return "stopSayResponse";
     default:
       return `${toCamelCase(name)}Response`;
   }

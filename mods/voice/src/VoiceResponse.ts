@@ -52,6 +52,7 @@ import {
   Say,
   StartStream,
   StartStreamGather,
+  StopSay,
   StopStream,
   StopStreamGather,
   Stream,
@@ -241,13 +242,36 @@ class VoiceResponse {
    */
   async say(text: string, options?: SayOptions): Promise<SayResponse> {
     const response = await new Say(this.request, this.voice).run({
-      playbackRef: options?.playbackRef,
       options: options ? struct.encode(options) : undefined,
       sessionRef: this.request.sessionRef,
       text
     });
 
-    return { playbackRef: response.sayResponse.playbackRef };
+    return response.sayResponse;
+  }
+
+  /**
+   * Stop the TTS engine.
+   * @example
+   *
+   * async function handler (request, response) {
+   *   await response.answer();
+   *
+   *   // Some async operation
+   *   setTimeout(() => {
+   *     // Will stop the current TTS operation
+   *     response.stopSay();
+   *   }, 1000);
+   *
+   *   await response.say("Long text to say...");
+   * }
+   */
+  async stopSay(): Promise<VerbResponse> {
+    const response = await new StopSay(this.request, this.voice).run({
+      sessionRef: this.request.sessionRef
+    });
+
+    return response.stopSayResponse;
   }
 
   /**

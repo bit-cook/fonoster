@@ -16,16 +16,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SayRequest } from "@fonoster/common";
+import { StopSayRequest } from "@fonoster/common";
 import { z } from "zod";
-import { Verb } from "./Verb";
+import { VoiceClient } from "../types";
+import { withErrorHandling } from "./utils/withErrorHandling";
 
-class Say extends Verb<SayRequest> {
-  getValidationSchema(): z.Schema {
-    return z.object({
-      text: z.string().min(1)
+const requestSchema = z.object({
+  sessionRef: z.string()
+});
+
+function createStopSayHandler(voiceClient: VoiceClient) {
+  return withErrorHandling(async (stopSayReq: StopSayRequest) => {
+    requestSchema.parse(stopSayReq);
+
+    const { sessionRef } = stopSayReq;
+
+    try {
+      voiceClient.stopSynthesis();
+    } catch (err) {
+      // We can only try
+    }
+
+    voiceClient.sendResponse({
+      stopSayResponse: {
+        sessionRef
+      }
     });
-  }
+  });
 }
 
-export { Say };
+export { createStopSayHandler };

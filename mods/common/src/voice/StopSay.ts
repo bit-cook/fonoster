@@ -16,16 +16,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SayRequest } from "@fonoster/common";
-import { z } from "zod";
-import { Verb } from "./Verb";
+import { VerbRequest } from "./Verb";
 
-class Say extends Verb<SayRequest> {
-  getValidationSchema(): z.Schema {
-    return z.object({
-      text: z.string().min(1)
-    });
-  }
-}
+type StopSayRequest = VerbRequest & {
+  sessionRef: string;
+};
 
-export { Say };
+type StopSayResponse = {
+  sessionRef: string;
+};
+
+export { StopSayRequest, StopSayResponse };

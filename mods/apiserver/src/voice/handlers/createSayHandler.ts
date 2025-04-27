@@ -18,7 +18,6 @@
  */
 import { SayRequest } from "@fonoster/common";
 import { Client } from "ari-client";
-import { nanoid } from "nanoid";
 import { struct } from "pb-util";
 import { z } from "zod";
 import { VoiceClient } from "../types";
@@ -27,15 +26,12 @@ import { withErrorHandling } from "./utils/withErrorHandling";
 const sayRequestSchema = z.object({
   text: z.string(),
   sessionRef: z.string(),
-  playbackRef: z.string().optional(),
   options: z.record(z.unknown()).optional()
 });
 
 function createSayHandler(ari: Client, voiceClient: VoiceClient) {
   return withErrorHandling(async (request: SayRequest) => {
     sayRequestSchema.parse(request);
-
-    const playbackRef = request.playbackRef || nanoid(10);
 
     await voiceClient.synthesize(
       request.text,
@@ -44,7 +40,7 @@ function createSayHandler(ari: Client, voiceClient: VoiceClient) {
 
     voiceClient.sendResponse({
       sayResponse: {
-        playbackRef
+        sessionRef: request.sessionRef
       }
     });
   });

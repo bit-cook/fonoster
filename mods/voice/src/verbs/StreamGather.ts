@@ -18,7 +18,6 @@
  */
 import { Stream as StreamObj } from "stream";
 import {
-  Messages,
   StartStreamGatherRequest,
   StreamGatherPayload,
   StreamGatherSource,
@@ -42,7 +41,7 @@ class StartStreamGather extends Verb<StartStreamGatherRequest> {
 class StopStreamGather extends Verb<VerbRequest> {
   getValidationSchema(): z.Schema {
     return z.object({
-      sessionRef: z.string().uuid({ message: Messages.VALID_UUID })
+      sessionRef: z.string()
     });
   }
 }

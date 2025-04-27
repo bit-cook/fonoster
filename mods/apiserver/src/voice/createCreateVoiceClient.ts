@@ -31,10 +31,7 @@ const logger = getLogger({ service: "apiserver", filePath: __filename });
 const generateCallAccessToken = createGenerateCallAccessToken(identityConfig);
 
 // Note: By the time the call arrives here the owner of the app MUST be authenticated
-function createCreateVoiceClient(
-  createContainer: CreateContainer,
-  filesServer
-) {
+function createCreateVoiceClient(createContainer: CreateContainer) {
   return async function createVoiceClient(params: {
     ari: Client;
     event: StasisStart;
@@ -79,7 +76,7 @@ function createCreateVoiceClient(
       ingressNumber
     });
 
-    return new VoiceClientImpl({ ari, config, tts, stt }, filesServer);
+    return new VoiceClientImpl({ ari, config, tts, stt });
   };
 }
 
