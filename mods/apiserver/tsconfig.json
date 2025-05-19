@@ -22,6 +22,9 @@
     },
     {
       "path": "../streams",
+    },
+    {
+      "path": "../autopilot",
     }
   ],
   "exclude": ["node_modules", "dist", "test"]

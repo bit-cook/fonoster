@@ -16,15 +16,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { evaluateStep } from "./evaluateStep";
 import {
-  ScenarioEvaluationConfig,
   ScenarioEvaluationReport,
   StepEvaluationReport
-} from "./types";
+} from "@fonoster/types";
+import { evaluateStep } from "./evaluateStep";
+import { ScenarioEvaluationRequest } from "./types";
 
 export async function evaluateScenario(
-  config: ScenarioEvaluationConfig
+  config: ScenarioEvaluationRequest
 ): Promise<ScenarioEvaluationReport> {
   const { scenario, languageModel, testTextSimilarity, assistantConfig } =
     config;
