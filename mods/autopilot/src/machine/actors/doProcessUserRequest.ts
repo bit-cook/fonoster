@@ -37,7 +37,10 @@ export const doProcessUserRequest = fromPromise(
       // Stop any speech that might be playing
       await context.voice.stopSpeech();
 
-      const response = await languageModel.invoke(speech, context.hasLateSpeech);
+      const response = await languageModel.invoke(
+        speech,
+        context.hasLateSpeech
+      );
 
       if (response.type === "say" && !response.content) {
         logger.warn("ignoring say response with no content");
