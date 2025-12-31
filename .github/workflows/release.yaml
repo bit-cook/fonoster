@@ -26,7 +26,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22.x"
 
@@ -76,14 +76,13 @@ jobs:
 
       - name: Create draft release
         if: env.RELEASE != 'none'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.LERNA_VERSION }}
-          release_name: Release v${{ env.LERNA_VERSION }}
+          name: Release v${{ env.LERNA_VERSION }}
           body: ${{ steps.changelog.outputs.changelog }}
           draft: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   publish-apiserver:
     name: Publish APIServer to Docker Hub
@@ -169,7 +168,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22.x"
 
@@ -180,18 +179,19 @@ jobs:
 
       - name: Find and publish release
         run: |
-          # Get the release by tag
-          release_response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ env.LERNA_VERSION }}")
+          # List releases and find the draft with matching tag
+          # Note: /releases/tags/{tag} doesn't return draft releases
+          release_id=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            | jq -r '.[] | select(.tag_name == "v${{ env.LERNA_VERSION }}" and .draft == true) | .id' \
+            | head -1)
           
-          release_id=$(echo "$release_response" | jq -r '.id')
-          
-          if [ "$release_id" = "null" ] || [ -z "$release_id" ]; then
-            echo "Error: Could not find release with tag v${{ env.LERNA_VERSION }}"
+          if [ -z "$release_id" ]; then
+            echo "Error: Could not find draft release with tag v${{ env.LERNA_VERSION }}"
             exit 1
           fi
           
-          echo "Found release ID: $release_id"
+          echo "Found draft release ID: $release_id"
           
           # Publish the release (remove draft status)
           curl -X PATCH \
@@ -202,17 +202,19 @@ jobs:
           
           echo "✅ Release v${{ env.LERNA_VERSION }} has been published"
 
-      - name: Update compose.yaml with new version tags
-        run: |
-          # Update custom service images from any version to :${LERNA_VERSION}
-          sed -i "s|fonoster/dashboard:[^[:space:]]*|fonoster/dashboard:${{ env.LERNA_VERSION }}|g" compose.yaml
-          sed -i "s|fonoster/apiserver:[^[:space:]]*|fonoster/apiserver:${{ env.LERNA_VERSION }}|g" compose.yaml
-          sed -i "s|fonoster/autopilot:[^[:space:]]*|fonoster/autopilot:${{ env.LERNA_VERSION }}|g" compose.yaml
-
       - name: Commit and push updated compose.yaml
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Pull latest changes first (before making modifications)
+          git pull --rebase origin main
+          
+          # Update custom service images from any version to :${LERNA_VERSION}
+          sed -i "s|fonoster/dashboard:[^[:space:]]*|fonoster/dashboard:${{ env.LERNA_VERSION }}|g" compose.yaml
+          sed -i "s|fonoster/apiserver:[^[:space:]]*|fonoster/apiserver:${{ env.LERNA_VERSION }}|g" compose.yaml
+          sed -i "s|fonoster/autopilot:[^[:space:]]*|fonoster/autopilot:${{ env.LERNA_VERSION }}|g" compose.yaml
+          
           git add compose.yaml
           
           # Check if there are any changes to commit

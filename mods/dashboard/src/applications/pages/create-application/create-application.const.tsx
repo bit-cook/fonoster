@@ -43,23 +43,22 @@ export const TTS_VENDORS = [
  * Each voice is identified by a vendor-specific ID and a human-friendly label.
  */
 export const TTS_ELEVENLABS_VOICES = [
-  { value: "Sarah", label: "Sarah (en-us)" },
-  { value: "Laura", label: "Laura (en-us)" },
-  { value: "Charlie", label: "Charlie (en-au)" },
-  { value: "George", label: "George (en-gb)" },
-  { value: "Callum", label: "Callum (en-gb)" },
-  { value: "Liam", label: "Liam (en-us)" },
-  { value: "Charlotte", label: "Charlotte (sv-se)" },
-  { value: "Alice", label: "Alice (en-gb)" },
-  { value: "Matilda", label: "Matilda (en-us)" },
-  { value: "Will", label: "Will (en-us)" },
-  { value: "Jessica", label: "Jessica (en-us)" },
-  { value: "Eric", label: "Eric (en-us)" },
-  { value: "Chris", label: "Chris (en-us)" },
-  { value: "Brian", label: "Brian (en-us)" },
-  { value: "Daniel", label: "Daniel (en-gb)" },
-  { value: "Lily", label: "Lily (en-gb)" },
-  { value: "Bill", label: "Bill (en-us)" }
+  { value: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (en-us)" },
+  { value: "FGY2WhTYpPnrIDTdsKH5", label: "Laura (en-us)" },
+  { value: "IKne3meq5aSn9XLyUdCD", label: "Charlie (en-au)" },
+  { value: "JBFqnCBsd6RMkjVDRZzb", label: "George (en-gb)" },
+  { value: "N2lVS1w4EtoT3dr4eOWO", label: "Callum (en-gb)" },
+  { value: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (en-us)" },
+  { value: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice (en-gb)" },
+  { value: "XrExE9yKIg1WjnnlVkGX", label: "Matilda (en-us)" },
+  { value: "bIHbv24MWmeRgasZH58o", label: "Will (en-us)" },
+  { value: "cgSgspJ2msm6clMCkdW9", label: "Jessica (en-us)" },
+  { value: "cjVigY5qzO86Huf0OWal", label: "Eric (en-us)" },
+  { value: "iP95p4xoKVk53GoZ742B", label: "Chris (en-us)" },
+  { value: "nPczCjzI2devNBz1zQrb", label: "Brian (en-us)" },
+  { value: "onwK4e9ZLuTAKqWW03F9", label: "Daniel (en-gb)" },
+  { value: "pFZP5JQG7iQjIQuC4Bku", label: "Lily (en-gb)" },
+  { value: "pqHfZKP75CvOlQylNhV4", label: "Bill (en-us)" }
 ];
 
 /**
@@ -174,19 +173,24 @@ export const LANGUAGE_MODEL_OPENAI_MODELS = [
 ];
 
 export const LANGUAGE_MODEL_GROQ_MODELS = [
-  { value: "llama-3.3-70b-specdec", label: "Llama 3.3 70B SpecDec" },
   { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B Versatile" }
 ];
 
 export const LANGUAGE_MODEL_GOOGLE_MODELS = [
   { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
   { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-  { value: "gemini-2.0-pro-exp-02-05", label: "Gemini 2.0 Pro Exp 02-05" }
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" }
 ];
 
+// Models temporarily unavailable by LangChain
 export const LANGUAGE_MODEL_ANTHROPIC_MODELS = [
-  { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet Latest" },
-  { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku Latest" }
+  { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+  { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+  { value: "claude-opus-4-5", label: "Claude Opus 4.5" }
 ];
 
 export const getLanguageModelModels = (provider: LanguageModelProvider) => {

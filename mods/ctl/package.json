@@ -1,6 +1,6 @@
 {
   "name": "@fonoster/ctl",
-  "version": "0.16.0",
+  "version": "0.16.8",
   "description": "Fonoster Control Tool",
   "author": "Pedro Sanders <psanders@fonoster.com>",
   "homepage": "https://github.com/fonoster/fonoster#readme",
@@ -51,7 +51,7 @@
     }
   },
   "dependencies": {
-    "@fonoster/sdk": "^0.16.0",
+    "@fonoster/sdk": "^0.16.8",
     "@inquirer/prompts": "^7.1.0",
     "@oclif/core": "^4.0.34",
     "@oclif/plugin-warn-if-update-available": "^3.1.28",
@@ -59,7 +59,7 @@
     "cli-table3": "^0.6.5",
     "cliui": "^8.0.1",
     "figlet": "^1.8.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "moment": "^2.30.1",
     "oclif": "^4.17.46",
     "phone": "^3.1.55",
